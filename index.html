@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Venue ID Scanner & Age Display</title>
-    <!-- Loaded the official CDN distribution engine for HTML5-QRCode -->
+    <!-- Stable Engine Distribution Engine -->
     <script src="https://unpkg.com"></script>
     <style>
         body {
@@ -15,7 +15,7 @@
             padding: 15px;
         }
         .container {
-            max-width: 440px;
+            max-width: 100%;
             margin: auto;
             background: #1c1c1f;
             padding: 20px;
@@ -29,23 +29,32 @@
             margin-top: 0;
             margin-bottom: 20px;
             font-size: 1.5em;
-            letter-spacing: 0.5px;
         }
         #reader {
-            width: 100%;
-            min-height: 250px;
-            border-radius: 10px;
-            overflow: hidden;
+            width: 100% !important;
             background: #000;
             border: 1px solid #29292e;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
         }
-        /* HIDE UGLY DEFAULT LIBRARY BUTTONS AND ACCIDENTS */
-        #reader__dashboard_section_swaplink, 
-        #reader__dashboard_section_fsr,
-        #reader button {
-            display: none !important;
+        #reader video {
+            width: 100% !important;
+            height: auto !important;
+            object-fit: cover;
         }
-        /* Tap Action Button for iOS Safari Permission */
+        /* Custom UI Elements for Hardware Camera Swapping */
+        .select-box {
+            width: 100%;
+            padding: 14px;
+            background: #29292e;
+            color: #fff;
+            border: 1px solid #3e3e44;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 12px;
+            display: none;
+        }
         .action-btn {
             width: 100%;
             padding: 16px;
@@ -56,8 +65,6 @@
             font-weight: bold;
             font-size: 1.1em;
             cursor: pointer;
-            margin-bottom: 15px;
-            text-align: center;
         }
         .status-alert-box {
             padding: 16px;
@@ -67,16 +74,8 @@
             display: none;
             font-weight: bold;
         }
-        .alert-valid {
-            background: rgba(40, 167, 69, 0.15);
-            border: 2px solid #28a745;
-            color: #28a745;
-        }
-        .alert-expired {
-            background: rgba(220, 53, 69, 0.15);
-            border: 2px solid #dc3545;
-            color: #dc3545;
-        }
+        .alert-valid { background: rgba(40, 167, 69, 0.15); border: 2px solid #28a745; color: #28a745; }
+        .alert-expired { background: rgba(220, 53, 69, 0.15); border: 2px solid #dc3545; color: #dc3545; }
         .age-display-box {
             background: #202024;
             border: 2px solid #007bff;
@@ -86,63 +85,25 @@
             margin: 15px 0;
             display: none;
         }
-        .age-title {
-            font-size: 0.9em;
-            color: #a8a8b3;
-            text-transform: uppercase;
-            font-weight: bold;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
-        .age-number {
-            font-size: 2.8em;
-            font-weight: 800;
-            color: #007bff;
-            line-height: 1;
-        }
-        .data-box {
-            background: #29292e;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid #323238;
-            padding: 10px 0;
-            font-size: 0.95em;
-        }
-        .data-row:last-child {
-            border-bottom: none;
-        }
-        .data-label {
-            color: #a8a8b3;
-            font-weight: 500;
-        }
-        .data-value {
-            color: #fff;
-            text-align: right;
-            font-weight: 600;
-            padding-left: 10px;
-        }
-        .status-sync {
-            text-align: center;
-            font-size: 0.85em;
-            color: #7c7c8a;
-            margin-top: 15px;
-        }
+        .age-title { font-size: 0.9em; color: #a8a8b3; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
+        .age-number { font-size: 2.8em; font-weight: 800; color: #007bff; }
+        .data-box { background: #29292e; padding: 12px; border-radius: 8px; margin-top: 15px; }
+        .data-row { display: flex; justify-content: space-between; border-bottom: 1px solid #323238; padding: 10px 0; font-size: 0.95em; }
+        .data-row:last-child { border-bottom: none; }
+        .data-label { color: #a8a8b3; }
+        .data-value { color: #fff; text-align: right; font-weight: 600; }
+        .status-sync { text-align: center; font-size: 0.85em; color: #7c7c8a; margin-top: 15px; }
     </style>
 </head>
 <body>
 <div class="container">
     <h2>ID Scanner & Age Log</h2>
     
-    <!-- Manual Action Trigger required to bypass iOS Webkit restrictions -->
-    <button id="start-btn" class="action-btn">📷 Start ID Scanner</button>
+    <!-- Camera Selection Elements -->
+    <select id="camera-select" class="select-box"></select>
+    <button id="start-btn" class="action-btn">📷 Find System Cameras</button>
     
     <div id="reader"></div>
-
     <div id="status-alert" class="status-alert-box"></div>
 
     <div id="age-box" class="age-display-box">
@@ -157,41 +118,81 @@
         <div class="data-row"><span class="data-label">Expiration Date:</span><span id="res-exp" class="data-value">-</span></div>
         <div class="data-row"><span class="data-label">Address:</span><span id="res-address" class="data-value">-</span></div>
     </div>
-    <div id="sync-status" class="status-sync">Tap the button above to launch camera...</div>
+    <div id="sync-status" class="status-sync">Tap the button above to discover lenses...</div>
 </div>
 
 <script>
-    // Paste your Google Apps Script URL here once deployed
-    const GOOGLE_WEB_APP_URL = "https://happycowbarandgrill.github.io/id-scanner/";
+    const GOOGLE_WEB_APP_URL = "YOUR_DEPLOYED_WEB_APP_URL_HERE";
     
     let html5QrCode;
+    let currentCameraId;
 
     document.getElementById("start-btn").addEventListener("click", function() {
-        this.style.display = "none"; // Hide button after interaction
-        document.getElementById("sync-status").innerText = "Initializing camera pipelines...";
+        const btn = this;
+        document.getElementById("sync-status").innerText = "Requesting permission context...";
         
-        // Target structural object declaration
-        html5QrCode = new Html5Qrcode("reader");
+        // Step 1: Discover available camera devices safely
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices && devices.length > 0) {
+                const selectMenu = document.getElementById("camera-select");
+                selectMenu.innerHTML = ""; // Flush options
+                
+                // Populate the native drop-down menu with detected system devices
+                devices.forEach((device, index) => {
+                    const option = document.createElement("option");
+                    option.value = device.id;
+                    // Intuitively sort labels for users
+                    option.text = device.label || `Camera ${index + 1}`;
+                    selectMenu.appendChild(option);
+                });
+                
+                // Show drop-down selector window
+                selectMenu.style.display = "block";
+                btn.innerText = "⚡ Activate Selected Lens";
+                document.getElementById("sync-status").innerText = "Select a camera, then tap Activate.";
+                
+                // Change listener behaviour to fire up the selected hardware ID
+                btn.onclick = function() {
+                    currentCameraId = selectMenu.value;
+                    launchCameraEngine(currentCameraId);
+                };
+            } else {
+                document.getElementById("sync-status").innerText = "Error: No internal cameras found.";
+            }
+        }).catch(err => {
+            console.error(err);
+            document.getElementById("sync-status").innerText = "Access Denied. Check iOS Settings > Safari > Camera.";
+        });
+    }, { once: true }); // Fires discovery pipeline exactly once
+
+    function launchCameraEngine(cameraId) {
+        document.getElementById("sync-status").innerText = "Powering up chosen optic module...";
         
+        if(html5QrCode) {
+            html5QrCode.stop().then(() => startScanning(cameraId)).catch(() => startScanning(cameraId));
+        } else {
+            html5QrCode = new Html5Qrcode("reader");
+            startScanning(cameraId);
+        }
+    }
+
+    function startScanning(cameraId) {
         html5QrCode.start(
-            { facingMode: "environment" }, // Target the rear lens
+            cameraId,
             {
                 fps: 15,
-                // FIX FOR SAFARI: Fixed dimensions ensure scanning canvas cannot exceed parent boundary width
-                qrbox: { width: 280, height: 160 },
                 formatsToSupport: [ Html5QrcodeSupportedFormats.PDF_417 ]
             },
             onScanSuccess
         )
         .then(() => {
-            document.getElementById("sync-status").innerText = "Align barcode within the center window.";
+            document.getElementById("sync-status").innerText = "Lens Active. Position barcode inside field of view.";
         })
         .catch(err => {
-            console.error("Camera startup fault: ", err);
-            document.getElementById("start-btn").style.display = "block";
-            document.getElementById("sync-status").innerText = "Error: Check Safari app permissions under iOS Settings.";
+            console.error("Hardware runtime crash: ", err);
+            document.getElementById("sync-status").innerText = "Pipeline crashed. Select a different lens from dropdown.";
         });
-    });
+    }
 
     function onScanSuccess(decodedText) {
         document.getElementById("sync-status").innerText = "Processing barcode data payload...";
@@ -228,12 +229,9 @@
             today.setHours(0,0,0,0);
             const expDate = new Date(expParsed.year, expParsed.month - 1, expParsed.day);
             
-            if (expDate < today) {
-                isExpired = true;
-            }
+            if (expDate < today) { isExpired = true; }
         }
 
-        // Interface adjustments
         document.getElementById("res-first").innerText = first || "N/A";
         document.getElementById("res-last").innerText = last || "N/A";
         document.getElementById("res-dob").innerText = formattedDOB;
@@ -252,7 +250,6 @@
             alertBox.innerText = "✓ VALID ENTRY PRIVILEGES";
         }
 
-        // Freeze engine tracking during asynchronous operations
         html5QrCode.stop().catch(err => console.error("Pause fault:", err));
 
         const payload = {
@@ -266,7 +263,7 @@
             address: fullAddress || "N/A"
         };
 
-        if(GOOGLE_WEB_APP_URL === "YOUR_DEPLOYED_WEB_APP_URL_HERE") {
+        if(GOOGLE_WEB_APP_URL === "https://script.google.com/macros/s/AKfycby08TnHneGKXkdgYp75etFtDRCGEeXQ6f9lMUxluM1dVw9L-CsNEV2WpCNYpmeiIj9i/exec") {
             document.getElementById("sync-status").innerText = "Validation complete (Cloud link missing).";
             resetScannerAfterDelay();
             return;
@@ -283,8 +280,7 @@
             resetScannerAfterDelay();
         })
         .catch(err => {
-            console.error("Transmission fault: ", err);
-            document.getElementById("sync-status").innerText = "Local validation completed; network sync error.";
+            document.getElementById("sync-status").innerText = "Network sync error.";
             resetScannerAfterDelay();
         });
     }
@@ -293,11 +289,10 @@
         setTimeout(() => {
             document.getElementById("status-alert").style.display = "none";
             document.getElementById("age-box").style.display = "none";
-            document.getElementById("sync-status").innerText = "Rebooting video framework...";
             
             html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 15, qrbox: { width: 280, height: 160 }, formatsToSupport: [ Html5QrcodeSupportedFormats.PDF_417 ] },
+                currentCameraId,
+                { fps: 15, formatsToSupport: [ Html5QrcodeSupportedFormats.PDF_417 ] },
                 onScanSuccess
             ).then(() => {
                 document.getElementById("sync-status").innerText = "Ready to scan next ID...";
@@ -308,7 +303,7 @@
     function extractField(data, key) {
         const regex = new RegExp(key + "([^\\n\\r\\f\\v\\x1E\\x1D]+)");
         const match = data.match(regex);
-        return match ? match[1].trim() : "";
+        return match ? match.trim() : "";
     }
 
     function parseAamvaDate(rawDateStr) {
