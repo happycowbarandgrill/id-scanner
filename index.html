@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Venue ID Scanner & Age Display</title>
     <!-- Loaded the official CDN distribution engine for HTML5-QRCode -->
     <script src="https://cloudflare.com"></script>
@@ -15,7 +15,7 @@
             padding: 15px;
         }
         .container {
-            max-width: 480px;
+            max-width: 440px;
             margin: auto;
             background: #1c1c1f;
             padding: 20px;
@@ -33,15 +33,32 @@
         }
         #reader {
             width: 100%;
+            min-height: 250px;
             border-radius: 10px;
             overflow: hidden;
             background: #000;
             border: 1px solid #29292e;
         }
-        #reader__dashboard_section_swaplink {
+        /* HIDE UGLY DEFAULT LIBRARY BUTTONS AND ACCIDENTS */
+        #reader__dashboard_section_swaplink, 
+        #reader__dashboard_section_fsr,
+        #reader button {
             display: none !important;
         }
-        /* Status Alert Panels */
+        /* Tap Action Button for iOS Safari Permission */
+        .action-btn {
+            width: 100%;
+            padding: 16px;
+            background: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin-bottom: 15px;
+            text-align: center;
+        }
         .status-alert-box {
             padding: 16px;
             border-radius: 8px;
@@ -59,12 +76,6 @@
             background: rgba(220, 53, 69, 0.15);
             border: 2px solid #dc3545;
             color: #dc3545;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
         }
         .age-display-box {
             background: #202024;
@@ -126,9 +137,12 @@
 <body>
 <div class="container">
     <h2>ID Scanner & Age Log</h2>
+    
+    <!-- Manual Action Trigger required to bypass iOS Webkit restrictions -->
+    <button id="start-btn" class="action-btn">📷 Start ID Scanner</button>
+    
     <div id="reader"></div>
 
-    <!-- Dynamic Status Banner for Expiration Status -->
     <div id="status-alert" class="status-alert-box"></div>
 
     <div id="age-box" class="age-display-box">
@@ -143,25 +157,41 @@
         <div class="data-row"><span class="data-label">Expiration Date:</span><span id="res-exp" class="data-value">-</span></div>
         <div class="data-row"><span class="data-label">Address:</span><span id="res-address" class="data-value">-</span></div>
     </div>
-    <div id="sync-status" class="status-sync">Ready to scan...</div>
+    <div id="sync-status" class="status-sync">Tap the button above to launch camera...</div>
 </div>
 
 <script>
-    const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby08TnHneGKXkdgYp75etFtDRCGEeXQ6f9lMUxluM1dVw9L-CsNEV2WpCNYpmeiIj9i/exec";
-
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
-        fps: 15,
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-            return {
-                width: Math.floor(viewfinderWidth * 0.85),
-                height: Math.floor(viewfinderHeight * 0.45)
-            };
-        },
-        formatsToSupport: [ Html5QrcodeSupportedFormats.PDF_417 ],
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    }, false);
+    // Paste your Google Apps Script URL here once deployed
+    const GOOGLE_WEB_APP_URL = "YOUR_DEPLOYED_WEB_APP_URL_HERE";
     
-    html5QrcodeScanner.render(onScanSuccess);
+    let html5QrCode;
+
+    document.getElementById("start-btn").addEventListener("click", function() {
+        this.style.display = "none"; // Hide button after interaction
+        document.getElementById("sync-status").innerText = "Initializing camera pipelines...";
+        
+        // Target structural object declaration
+        html5QrCode = new Html5Qrcode("reader");
+        
+        html5QrCode.start(
+            { facingMode: "environment" }, // Target the rear lens
+            {
+                fps: 15,
+                // FIX FOR SAFARI: Fixed dimensions ensure scanning canvas cannot exceed parent boundary width
+                qrbox: { width: 280, height: 160 },
+                formatsToSupport: [ Html5QrcodeSupportedFormats.PDF_417 ]
+            },
+            onScanSuccess
+        )
+        .then(() => {
+            document.getElementById("sync-status").innerText = "Align barcode within the center window.";
+        })
+        .catch(err => {
+            console.error("Camera startup fault: ", err);
+            document.getElementById("start-btn").style.display = "block";
+            document.getElementById("sync-status").innerText = "Error: Check Safari app permissions under iOS Settings.";
+        });
+    });
 
     function onScanSuccess(decodedText) {
         document.getElementById("sync-status").innerText = "Processing barcode data payload...";
@@ -170,7 +200,7 @@
         const middle = extractField(decodedText, "DAD");
         const last = extractField(decodedText, "DCS");
         const dobRaw = extractField(decodedText, "DBB"); 
-        const expRaw = extractField(decodedText, "DBA"); // AAMVA Expiration Designator
+        const expRaw = extractField(decodedText, "DBA");
         const street = extractField(decodedText, "DAG");
         const city = extractField(decodedText, "DAI");
         const state = extractField(decodedText, "DAJ");
@@ -183,12 +213,10 @@
             return;
         }
 
-        // Process Birth Date
         const dobParsed = parseAamvaDate(dobRaw);
         const formattedDOB = `${String(dobParsed.month).padStart(2,'0')}/${String(dobParsed.day).padStart(2,'0')}/${dobParsed.year}`;
         const calculatedAge = getCalculatedAge(dobParsed.year, dobParsed.month, dobParsed.day);
 
-        // Process Expiration Date
         let formattedEXP = "N/A";
         let isExpired = false;
         
@@ -196,7 +224,6 @@
             const expParsed = parseAamvaDate(expRaw);
             formattedEXP = `${String(expParsed.month).padStart(2,'0')}/${String(expParsed.day).padStart(2,'0')}/${expParsed.year}`;
             
-            // Generate comparison timestamps (set to midnight to prevent timezone false flags)
             const today = new Date();
             today.setHours(0,0,0,0);
             const expDate = new Date(expParsed.year, expParsed.month - 1, expParsed.day);
@@ -206,7 +233,7 @@
             }
         }
 
-        // UI Update Layout
+        // Interface adjustments
         document.getElementById("res-first").innerText = first || "N/A";
         document.getElementById("res-last").innerText = last || "N/A";
         document.getElementById("res-dob").innerText = formattedDOB;
@@ -215,7 +242,6 @@
         document.getElementById("res-age").innerText = calculatedAge;
         document.getElementById("age-box").style.display = "block";
 
-        // Display Expiration Status Alert Banner
         const alertBox = document.getElementById("status-alert");
         alertBox.style.display = "block";
         if (isExpired) {
@@ -226,8 +252,8 @@
             alertBox.innerText = "✓ VALID ENTRY PRIVILEGES";
         }
 
-        // Stop scanning briefly to show banner and prevent rapid duplicated posts
-        html5QrcodeScanner.clear();
+        // Freeze engine tracking during asynchronous operations
+        html5QrCode.stop().catch(err => console.error("Pause fault:", err));
 
         const payload = {
             firstName: first || "N/A",
@@ -241,7 +267,7 @@
         };
 
         if(GOOGLE_WEB_APP_URL === "YOUR_DEPLOYED_WEB_APP_URL_HERE") {
-            document.getElementById("sync-status").innerText = "Local validation complete (Cloud sync URL missing).";
+            document.getElementById("sync-status").innerText = "Validation complete (Cloud link missing).";
             resetScannerAfterDelay();
             return;
         }
@@ -265,11 +291,18 @@
 
     function resetScannerAfterDelay() {
         setTimeout(() => {
-            html5QrcodeScanner.render(onScanSuccess);
-            document.getElementById("sync-status").innerText = "Ready to scan next ID...";
             document.getElementById("status-alert").style.display = "none";
             document.getElementById("age-box").style.display = "none";
-        }, 4000); // 4 Second view delay before resetting camera state
+            document.getElementById("sync-status").innerText = "Rebooting video framework...";
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 15, qrbox: { width: 280, height: 160 }, formatsToSupport: [ Html5QrcodeSupportedFormats.PDF_417 ] },
+                onScanSuccess
+            ).then(() => {
+                document.getElementById("sync-status").innerText = "Ready to scan next ID...";
+            });
+        }, 4000); 
     }
 
     function extractField(data, key) {
@@ -278,15 +311,13 @@
         return match ? match[1].trim() : "";
     }
 
-    // Normalizes parsing because different states use MMDDYYYY vs YYYYMMDD formats
     function parseAamvaDate(rawDateStr) {
         let month, day, year;
-        // If string starts with 4 digits, parse as YYYYMMDD
         if (/^\d{4}/.test(rawDateStr)) {
             year = parseInt(rawDateStr.substring(0, 4), 10);
             month = parseInt(rawDateStr.substring(4, 6), 10);
             day = parseInt(rawDateStr.substring(6, 8), 10);
-        } else { // Standard default layout structural pattern: MMDDYYYY
+        } else { 
             month = parseInt(rawDateStr.substring(0, 2), 10);
             day = parseInt(rawDateStr.substring(2, 4), 10);
             year = parseInt(rawDateStr.substring(4, 8), 10);
