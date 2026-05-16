@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venue ID Scanner & Age Display</title>
+    <!-- Loaded the official CDN distribution engine for HTML5-QRCode -->
+    <script src="https://cloudflare.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #121214;
+            color: #e1e1e6;
+            margin: 0;
+            padding: 15px;
+        }
+        .container {
+            max-width: 480px;
+            margin: auto;
+            background: #1c1c1f;
+            padding: 20px;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            color: #fff;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            letter-spacing: 0.5px;
+        }
+        #reader {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid #29292e;
+        }
+        #reader__dashboard_section_swaplink {
+            display: none !important;
+        }
+        /* Status Alert Panels */
+        .status-alert-box {
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 15px 0;
+            display: none;
+            font-weight: bold;
+        }
+        .alert-valid {
+            background: rgba(40, 167, 69, 0.15);
+            border: 2px solid #28a745;
+            color: #28a745;
+        }
+        .alert-expired {
+            background: rgba(220, 53, 69, 0.15);
+            border: 2px solid #dc3545;
+            color: #dc3545;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        .age-display-box {
+            background: #202024;
+            border: 2px solid #007bff;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 15px 0;
+            display: none;
+        }
+        .age-title {
+            font-size: 0.9em;
+            color: #a8a8b3;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .age-number {
+            font-size: 2.8em;
+            font-weight: 800;
+            color: #007bff;
+            line-height: 1;
+        }
+        .data-box {
+            background: #29292e;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #323238;
+            padding: 10px 0;
+            font-size: 0.95em;
+        }
+        .data-row:last-child {
+            border-bottom: none;
+        }
+        .data-label {
+            color: #a8a8b3;
+            font-weight: 500;
+        }
+        .data-value {
+            color: #fff;
+            text-align: right;
+            font-weight: 600;
+            padding-left: 10px;
+        }
+        .status-sync {
+            text-align: center;
+            font-size: 0.85em;
+            color: #7c7c8a;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>ID Scanner & Age Log</h2>
+    <div id="reader"></div>
+
+    <!-- Dynamic Status Banner for Expiration Status -->
+    <div id="status-alert" class="status-alert-box"></div>
+
+    <div id="age-box" class="age-display-box">
+        <div class="age-title">Calculated Age</div>
+        <div id="res-age" class="age-number">-</div>
+    </div>
+
+    <div class="data-box">
+        <div class="data-row"><span class="data-label">First Name:</span><span id="res-first" class="data-value">-</span></div>
+        <div class="data-row"><span class="data-label">Last Name:</span><span id="res-last" class="data-value">-</span></div>
+        <div class="data-row"><span class="data-label">DOB:</span><span id="res-dob" class="data-value">-</span></div>
+        <div class="data-row"><span class="data-label">Expiration Date:</span><span id="res-exp" class="data-value">-</span></div>
+        <div class="data-row"><span class="data-label">Address:</span><span id="res-address" class="data-value">-</span></div>
+    </div>
+    <div id="sync-status" class="status-sync">Ready to scan...</div>
+</div>
+
+<script>
+    const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby08TnHneGKXkdgYp75etFtDRCGEeXQ6f9lMUxluM1dVw9L-CsNEV2WpCNYpmeiIj9i/exec";
+
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+        fps: 15,
+        qrbox: function(viewfinderWidth, viewfinderHeight) {
+            return {
+                width: Math.floor(viewfinderWidth * 0.85),
+                height: Math.floor(viewfinderHeight * 0.45)
+            };
+        },
+        formatsToSupport: [ Html5QrcodeSupportedFormats.PDF_417 ],
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    }, false);
+    
+    html5QrcodeScanner.render(onScanSuccess);
+
+    function onScanSuccess(decodedText) {
+        document.getElementById("sync-status").innerText = "Processing barcode data payload...";
+
+        const first = extractField(decodedText, "DAC");
+        const middle = extractField(decodedText, "DAD");
+        const last = extractField(decodedText, "DCS");
+        const dobRaw = extractField(decodedText, "DBB"); 
+        const expRaw = extractField(decodedText, "DBA"); // AAMVA Expiration Designator
+        const street = extractField(decodedText, "DAG");
+        const city = extractField(decodedText, "DAI");
+        const state = extractField(decodedText, "DAJ");
+        const zip = extractField(decodedText, "DAK");
+        
+        const fullAddress = `${street}, ${city}, ${state} ${zip}`.replace(/^[,\s]+|[,\s]+$/g, '').trim();
+
+        if (!dobRaw || dobRaw.length < 8) {
+            document.getElementById("sync-status").innerText = "Error: Invalid data structure or birth segment missing.";
+            return;
+        }
+
+        // Process Birth Date
+        const dobParsed = parseAamvaDate(dobRaw);
+        const formattedDOB = `${String(dobParsed.month).padStart(2,'0')}/${String(dobParsed.day).padStart(2,'0')}/${dobParsed.year}`;
+        const calculatedAge = getCalculatedAge(dobParsed.year, dobParsed.month, dobParsed.day);
+
+        // Process Expiration Date
+        let formattedEXP = "N/A";
+        let isExpired = false;
+        
+        if (expRaw && expRaw.length >= 8) {
+            const expParsed = parseAamvaDate(expRaw);
+            formattedEXP = `${String(expParsed.month).padStart(2,'0')}/${String(expParsed.day).padStart(2,'0')}/${expParsed.year}`;
+            
+            // Generate comparison timestamps (set to midnight to prevent timezone false flags)
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const expDate = new Date(expParsed.year, expParsed.month - 1, expParsed.day);
+            
+            if (expDate < today) {
+                isExpired = true;
+            }
+        }
+
+        // UI Update Layout
+        document.getElementById("res-first").innerText = first || "N/A";
+        document.getElementById("res-last").innerText = last || "N/A";
+        document.getElementById("res-dob").innerText = formattedDOB;
+        document.getElementById("res-exp").innerText = formattedEXP;
+        document.getElementById("res-address").innerText = fullAddress || "N/A";
+        document.getElementById("res-age").innerText = calculatedAge;
+        document.getElementById("age-box").style.display = "block";
+
+        // Display Expiration Status Alert Banner
+        const alertBox = document.getElementById("status-alert");
+        alertBox.style.display = "block";
+        if (isExpired) {
+            alertBox.className = "status-alert-box alert-expired";
+            alertBox.innerText = "🚨 WARNING: THIS ID IS EXPIRED";
+        } else {
+            alertBox.className = "status-alert-box alert-valid";
+            alertBox.innerText = "✓ VALID ENTRY PRIVILEGES";
+        }
+
+        // Stop scanning briefly to show banner and prevent rapid duplicated posts
+        html5QrcodeScanner.clear();
+
+        const payload = {
+            firstName: first || "N/A",
+            middleName: middle || "",
+            lastName: last || "N/A",
+            dob: formattedDOB,
+            expirationDate: formattedEXP,
+            status: isExpired ? "EXPIRED" : "VALID",
+            age: calculatedAge,
+            address: fullAddress || "N/A"
+        };
+
+        if(GOOGLE_WEB_APP_URL === "YOUR_DEPLOYED_WEB_APP_URL_HERE") {
+            document.getElementById("sync-status").innerText = "Local validation complete (Cloud sync URL missing).";
+            resetScannerAfterDelay();
+            return;
+        }
+
+        fetch(GOOGLE_WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+        .then(() => {
+            document.getElementById("sync-status").innerText = "Data synchronized seamlessly to central log.";
+            resetScannerAfterDelay();
+        })
+        .catch(err => {
+            console.error("Transmission fault: ", err);
+            document.getElementById("sync-status").innerText = "Local validation completed; network sync error.";
+            resetScannerAfterDelay();
+        });
+    }
+
+    function resetScannerAfterDelay() {
+        setTimeout(() => {
+            html5QrcodeScanner.render(onScanSuccess);
+            document.getElementById("sync-status").innerText = "Ready to scan next ID...";
+            document.getElementById("status-alert").style.display = "none";
+            document.getElementById("age-box").style.display = "none";
+        }, 4000); // 4 Second view delay before resetting camera state
+    }
+
+    function extractField(data, key) {
+        const regex = new RegExp(key + "([^\\n\\r\\f\\v\\x1E\\x1D]+)");
+        const match = data.match(regex);
+        return match ? match[1].trim() : "";
+    }
+
+    // Normalizes parsing because different states use MMDDYYYY vs YYYYMMDD formats
+    function parseAamvaDate(rawDateStr) {
+        let month, day, year;
+        // If string starts with 4 digits, parse as YYYYMMDD
+        if (/^\d{4}/.test(rawDateStr)) {
+            year = parseInt(rawDateStr.substring(0, 4), 10);
+            month = parseInt(rawDateStr.substring(4, 6), 10);
+            day = parseInt(rawDateStr.substring(6, 8), 10);
+        } else { // Standard default layout structural pattern: MMDDYYYY
+            month = parseInt(rawDateStr.substring(0, 2), 10);
+            day = parseInt(rawDateStr.substring(2, 4), 10);
+            year = parseInt(rawDateStr.substring(4, 8), 10);
+        }
+        return { month, day, year };
+    }
+
+    function getCalculatedAge(birthYear, birthMonth, birthDay) {
+        const today = new Date();
+        let age = today.getFullYear() - birthYear;
+        const monthDiff = (today.getMonth() + 1) - birthMonth;
+        const dayDiff = today.getDate() - birthDay;
+        if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) { age--; }
+        return age;
+    }
+</script>
+</body>
+</html>
