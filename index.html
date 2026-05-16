@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Venue ID Scanner & Age Display</title>
-    <!-- FIX: Restored the complete and correct URL path to the scanner library -->
+    <!-- Ultra-stable unpkg source path for HTML5-QRCode engine -->
     <script src="https://unpkg.com"></script>
     <style>
         body {
@@ -14,7 +14,6 @@
             margin: 0;
             padding: 15px;
         }
-
         .container {
             max-width: 100%;
             margin: auto;
@@ -24,7 +23,6 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
             box-sizing: border-box;
         }
-
         h2 {
             text-align: center;
             color: #fff;
@@ -32,7 +30,6 @@
             margin-bottom: 20px;
             font-size: 1.5em;
         }
-
         .native-trigger-btn {
             display: block;
             width: 100%;
@@ -49,7 +46,6 @@
             margin-bottom: 15px;
             box-sizing: border-box;
         }
-
         #hidden-file-input {
             position: absolute;
             top: 0;
@@ -59,7 +55,6 @@
             opacity: 0;
             overflow: hidden;
         }
-
         .status-alert-box {
             padding: 16px;
             border-radius: 8px;
@@ -68,19 +63,8 @@
             display: none;
             font-weight: bold;
         }
-
-        .alert-valid {
-            background: rgba(40, 167, 69, 0.15);
-            border: 2px solid #28a745;
-            color: #28a745;
-        }
-
-        .alert-expired {
-            background: rgba(220, 53, 69, 0.15);
-            border: 2px solid #dc3545;
-            color: #dc3545;
-        }
-
+        .alert-valid { background: rgba(40, 167, 69, 0.15); border: 2px solid #28a745; color: #28a745; }
+        .alert-expired { background: rgba(220, 53, 69, 0.15); border: 2px solid #dc3545; color: #dc3545; }
         .age-display-box {
             background: #202024;
             border: 2px solid #007bff;
@@ -90,139 +74,100 @@
             margin: 15px 0;
             display: none;
         }
-
-        .age-title {
-            font-size: 0.9em;
-            color: #a8a8b3;
-            text-transform: uppercase;
-            font-weight: bold;
-            margin-bottom: 4px;
-        }
-
-        .age-number {
-            font-size: 2.8em;
-            font-weight: 800;
-            color: #007bff;
-        }
-
-        .data-box {
-            background: #29292e;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 1px solid #323238;
-            padding: 10px 0;
-            font-size: 0.95em;
-        }
-
-            .data-row:last-child {
-                border-bottom: none;
-            }
-
-        .data-label {
-            color: #a8a8b3;
-        }
-
-        .data-value {
-            color: #fff;
-            text-align: right;
-            font-weight: 600;
-        }
-
-        .status-sync {
-            text-align: center;
-            font-size: 0.85em;
-            color: #7c7c8a;
-            margin-top: 15px;
-        }
-
-        #reader {
-            width: 10px;
-            height: 10px;
-            opacity: 0.01;
-            overflow: hidden;
+        .age-title { font-size: 0.9em; color: #a8a8b3; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
+        .age-number { font-size: 2.8em; font-weight: 800; color: #007bff; }
+        .data-box { background: #29292e; padding: 12px; border-radius: 8px; margin-top: 15px; }
+        .data-row { display: flex; justify-content: space-between; border-bottom: 1px solid #323238; padding: 10px 0; font-size: 0.95em; }
+        .data-row:last-child { border-bottom: none; }
+        .data-label { color: #a8a8b3; }
+        .data-value { color: #fff; text-align: right; font-weight: 600; }
+        .status-sync { text-align: center; font-size: 0.85em; color: #7c7c8a; margin-top: 15px; }
+        
+        /* FIX: Rendered container layout elements visibly but compressed flat to prevent Safari thread discard */
+        #reader { 
+            width: 100% !important; 
+            max-width: 300px;
+            height: 2px !important; 
+            margin: 0 auto;
+            background: transparent;
+            overflow: hidden; 
+            border: none !important;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>ID Scanner & Age Log</h2>
+<div class="container">
+    <h2>ID Scanner & Age Log</h2>
+    
+    <label class="native-trigger-btn">
+        📷 Scan ID Barcode
+        <input type="file" id="hidden-file-input" accept="image/*" capture="environment">
+    </label>
+    
+    <div id="reader"></div>
+    <div id="status-alert" class="status-alert-box"></div>
 
-        <label class="native-trigger-btn">
-            📷 Scan ID Barcode
-            <input type="file" id="hidden-file-input" accept="image/*" capture="environment">
-        </label>
-
-        <div id="reader"></div>
-        <div id="status-alert" class="status-alert-box"></div>
-
-        <div id="age-box" class="age-display-box">
-            <div class="age-title">Calculated Age</div>
-            <div id="res-age" class="age-number">-</div>
-        </div>
-
-        <div class="data-box">
-            <div class="data-row"><span class="data-label">First Name:</span><span id="res-first" class="data-value">-</span></div>
-            <div class="data-row"><span class="data-label">Last Name:</span><span id="res-last" class="data-value">-</span></div>
-            <div class="data-row"><span class="data-label">DOB:</span><span id="res-dob" class="data-value">-</span></div>
-            <div class="data-row"><span class="data-label">Expiration Date:</span><span id="res-exp" class="data-value">-</span></div>
-            <div class="data-row"><span class="data-label">Address:</span><span id="res-address" class="data-value">-</span></div>
-        </div>
-        <div id="sync-status" class="status-sync">Ready to scan...</div>
+    <div id="age-box" class="age-display-box">
+        <div class="age-title">Calculated Age</div>
+        <div id="res-age" class="age-number">-</div>
     </div>
 
-    <script>
-        const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby08TnHneGKXkdgYp75etFtDRCGEeXQ6f9lMUxluM1dVw9L-CsNEV2WpCNYpmeiIj9i/exec";
+    <div class="data-box">
+        <div class="data-row"><span class="data-label">First Name:</span><span id="res-first" class="data-value">-</span></div>
+        <div class="data-row"><span class="data-label">Last Name:</span><span id="res-last" class="data-value">-</span></div>
+        <div class="data-row"><span class="data-label">DOB:</span><span id="res-dob" class="data-value">-</span></div>
+        <div class="data-row"><span class="data-label">Expiration Date:</span><span id="res-exp" class="data-value">-</span></div>
+        <div class="data-row"><span class="data-label">Address:</span><span id="res-address" class="data-value">-</span></div>
+    </div>
+    <div id="sync-status" class="status-sync">Ready to scan...</div>
+</div>
 
-        const fileInputElement = document.getElementById('hidden-file-input');
-        const html5QrCode = new Html5Qrcode("reader");
+<script>
+    const GOOGLE_WEB_APP_URL = "https://google.com";
+    
+    const fileInputElement = document.getElementById('hidden-file-input');
+    const html5QrCode = new Html5Qrcode("reader");
 
-        fileInputElement.addEventListener('change', e => {
+    fileInputElement.addEventListener('change', e => {
         if (e.target.files.length === 0) {
-        document.getElementById("sync-status").innerText = "Scan cancelled.";
-        return;
+            document.getElementById("sync-status").innerText = "Scan cancelled.";
+            return;
         }
 
         document.getElementById("status-alert").style.display = "none";
         document.getElementById("age-box").style.display = "none";
         document.getElementById("sync-status").innerText = "Analyzing barcode structure...";
-
+        
         const file = e.target.files[0];
-
+        
         html5QrCode.scanFile(file, true)
         .then(decodedText => {
-        onScanSuccess(decodedText);
+            onScanSuccess(decodedText);
         })
         .catch(err => {
-        console.error(err);
-        // FIX: This will now visibly report why a photo is unreadable (e.g. blurred lines, glare)
-        document.getElementById("sync-status").innerText = "Scan Failed: " + err;
+            console.error("Scanner tracking error details:", err);
+            document.getElementById("sync-status").innerText = "Scan Failed: " + err;
         });
-        });
+    });
 
-        function onScanSuccess(decodedText) {
+    function onScanSuccess(decodedText) {
         document.getElementById("sync-status").innerText = "Processing barcode data payload...";
 
         const first = extractField(decodedText, "DAC");
         const middle = extractField(decodedText, "DAD");
         const last = extractField(decodedText, "DCS");
-        const dobRaw = extractField(decodedText, "DBB");
+        const dobRaw = extractField(decodedText, "DBB"); 
         const expRaw = extractField(decodedText, "DBA");
         const street = extractField(decodedText, "DAG");
         const city = extractField(decodedText, "DAI");
         const state = extractField(decodedText, "DAJ");
         const zip = extractField(decodedText, "DAK");
-
+        
         const fullAddress = `${street}, ${city}, ${state} ${zip}`.replace(/^[,\s]+|[,\s]+$/g, '').trim();
 
         if (!dobRaw || dobRaw.length < 8) {
-        document.getElementById("sync-status").innerText = "Error: Invalid ID barcode structure.";
-        return;
+            document.getElementById("sync-status").innerText = "Error: Invalid ID barcode structure.";
+            return;
         }
 
         const dobParsed = parseAamvaDate(dobRaw);
@@ -231,16 +176,16 @@
 
         let formattedEXP = "N/A";
         let isExpired = false;
-
+        
         if (expRaw && expRaw.length >= 8) {
-        const expParsed = parseAamvaDate(expRaw);
-        formattedEXP = `${String(expParsed.month).padStart(2,'0')}/${String(expParsed.day).padStart(2,'0')}/${expParsed.year}`;
-
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const expDate = new Date(expParsed.year, expParsed.month - 1, expParsed.day);
-
-        if (expDate < today) { isExpired = true; }
+            const expParsed = parseAamvaDate(expRaw);
+            formattedEXP = `${String(expParsed.month).padStart(2,'0')}/${String(expParsed.day).padStart(2,'0')}/${expParsed.year}`;
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const expDate = new Date(expParsed.year, expParsed.month - 1, expParsed.day);
+            
+            if (expDate < today) { isExpired = true; }
         }
 
         document.getElementById("res-first").innerText = first || "N/A";
@@ -254,69 +199,69 @@
         const alertBox = document.getElementById("status-alert");
         alertBox.style.display = "block";
         if (isExpired) {
-        alertBox.className = "status-alert-box alert-expired";
-        alertBox.innerText = "🚨 WARNING: THIS ID IS EXPIRED";
+            alertBox.className = "status-alert-box alert-expired";
+            alertBox.innerText = "🚨 WARNING: THIS ID IS EXPIRED";
         } else {
-        alertBox.className = "status-alert-box alert-valid";
-        alertBox.innerText = "✓ VALID ENTRY PRIVILEGES";
+            alertBox.className = "status-alert-box alert-valid";
+            alertBox.innerText = "✓ VALID ENTRY PRIVILEGES";
         }
 
         fileInputElement.value = "";
 
         const payload = {
-        firstName: first || "N/A",
-        middleName: middle || "",
-        lastName: last || "N/A",
-        dob: formattedDOB,
-        expirationDate: formattedEXP,
-        status: isExpired ? "EXPIRED" : "VALID",
-        age: calculatedAge,
-        address: fullAddress || "N/A"
+            firstName: first || "N/A",
+            middleName: middle || "",
+            lastName: last || "N/A",
+            dob: formattedDOB,
+            expirationDate: formattedEXP,
+            status: isExpired ? "EXPIRED" : "VALID",
+            age: calculatedAge,
+            address: fullAddress || "N/A"
         };
 
-        // FIX: Removed the incorrect 'if' check that was blocking transmission to your URL
         fetch(GOOGLE_WEB_APP_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+            method: "POST",
+            mode: "no-cors", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
         })
         .then(() => {
-        document.getElementById("sync-status").innerText = "Data synchronized seamlessly to central log.";
+            document.getElementById("sync-status").innerText = "Data synchronized seamlessly to central log.";
         })
         .catch(err => {
-        document.getElementById("sync-status").innerText = "Network sync error.";
+            document.getElementById("sync-status").innerText = "Network sync error.";
         });
-        }
+    }
 
-        function extractField(data, key) {
+    function extractField(data, key) {
+        // Robust pattern extraction covering sub-delimiter splits
         const regex = new RegExp(key + "([^\\n\\r\\f\\v\\x1E\\x1D]+)");
         const match = data.match(regex);
-        return match ? match[1].trim() : ""; // Added match capture array targeting
-        }
+        return match ? match[1].trim() : "";
+    }
 
-        function parseAamvaDate(rawDateStr) {
+    function parseAamvaDate(rawDateStr) {
         let month, day, year;
         if (/^\d{4}/.test(rawDateStr)) {
-        year = parseInt(rawDateStr.substring(0, 4), 10);
-        month = parseInt(rawDateStr.substring(4, 6), 10);
-        day = parseInt(rawDateStr.substring(6, 8), 10);
-        } else {
-        month = parseInt(rawDateStr.substring(0, 2), 10);
-        day = parseInt(rawDateStr.substring(2, 4), 10);
-        year = parseInt(rawDateStr.substring(4, 8), 10);
+            year = parseInt(rawDateStr.substring(0, 4), 10);
+            month = parseInt(rawDateStr.substring(4, 6), 10);
+            day = parseInt(rawDateStr.substring(6, 8), 10);
+        } else { 
+            month = parseInt(rawDateStr.substring(0, 2), 10);
+            day = parseInt(rawDateStr.substring(2, 4), 10);
+            year = parseInt(rawDateStr.substring(4, 8), 10);
         }
         return { month, day, year };
-        }
+    }
 
-        function getCalculatedAge(birthYear, birthMonth, birthDay) {
+    function getCalculatedAge(birthYear, birthMonth, birthDay) {
         const today = new Date();
         let age = today.getFullYear() - birthYear;
         const monthDiff = (today.getMonth() + 1) - birthMonth;
         const dayDiff = today.getDate() - birthDay;
         if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) { age--; }
         return age;
-        }
-    </script>
+    }
+</script>
 </body>
 </html>
