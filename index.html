@@ -30,7 +30,7 @@
             margin-bottom: 20px;
             font-size: 1.5em;
         }
-        /* Style the system button to look like a high-end application asset */
+        /* Style the label to act as a high-end application asset button */
         .native-trigger-btn {
             display: block;
             width: 100%;
@@ -45,10 +45,17 @@
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
             margin-bottom: 15px;
+            box-sizing: border-box;
         }
-        /* Hidden file inputs */
+        /* Completely hide the ugly browser file input text label */
         #hidden-file-input {
-            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            overflow: hidden;
         }
         .status-alert-box {
             padding: 16px;
@@ -78,19 +85,19 @@
         .data-value { color: #fff; text-align: right; font-weight: 600; }
         .status-sync { text-align: center; font-size: 0.85em; color: #7c7c8a; margin-top: 15px; }
         
-        /* Hidden structural dummy block */
-        #reader { display: none; }
+        /* Required processing sandbox space for engine layout calculations */
+        #reader { width: 10px; height: 10px; opacity: 0.01; overflow: hidden; }
     </style>
 </head>
 <body>
 <div class="container">
     <h2>ID Scanner & Age Log</h2>
     
-    <!-- Clean, secure hardware call interface button -->
-    <button id="custom-scan-trigger" class="native-trigger-btn">📸 Scan ID Barcode</button>
-    
-    <!-- Native iOS system camera handler -->
-    <input type="file" id="hidden-file-input" accept="image/*" capture="environment">
+    <!-- Native Touch Target: Replaced the standard button with a hard-linked label wrapper -->
+    <label class="native-trigger-btn">
+        📷 Scan ID Barcode
+        <input type="file" id="hidden-file-input" accept="image/*" capture="environment">
+    </label>
     
     <div id="reader"></div>
     <div id="status-alert" class="status-alert-box"></div>
@@ -112,40 +119,33 @@
 
 <script>
     // Paste your Google Apps Script URL here once deployed
-    const GOOGLE_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby08TnHneGKXkdgYp75etFtDRCGEeXQ6f9lMUxluM1dVw9L-CsNEV2WpCNYpmeiIj9i/exec";
+    const GOOGLE_WEB_APP_URL = "YOUR_DEPLOYED_WEB_APP_URL_HERE";
     
     const fileInputElement = document.getElementById('hidden-file-input');
     const html5QrCode = new Html5Qrcode("reader");
 
-    // Connect our high-end UI layout button to fire up the native device capture mechanism
-    document.getElementById("custom-scan-trigger").addEventListener("click", () => {
-        // Clear old visual alerts before a new capture event
-        document.getElementById("status-alert").style.display = "none";
-        document.getElementById("age-box").style.display = "none";
-        document.getElementById("sync-status").innerText = "Awaiting device camera snapshot...";
-        
-        // Open the native Apple camera interface immediately
-        fileInputElement.click();
-    });
-
-    // Execute decoding pipeline as soon as the snapshot payload is returned from Apple Camera
+    // Execute decoding pipeline when image data is delivered by Apple Camera
     fileInputElement.addEventListener('change', e => {
         if (e.target.files.length === 0) {
             document.getElementById("sync-status").innerText = "Scan cancelled.";
             return;
         }
 
+        // Hide previous scan states immediately
+        document.getElementById("status-alert").style.display = "none";
+        document.getElementById("age-box").style.display = "none";
         document.getElementById("sync-status").innerText = "Analyzing barcode structure...";
+        
         const file = e.target.files[0];
         
-        // Pass file data stream safely into internal processing architecture
+        // Process image directly via file-handling parameters
         html5QrCode.scanFile(file, true)
         .then(decodedText => {
             onScanSuccess(decodedText);
         })
         .catch(err => {
             console.error(err);
-            document.getElementById("sync-status").innerText = "Error: Barcode unreadable. Ensure image is clear, close up, and well-lit.";
+            document.getElementById("sync-status").innerText = "Error: Unreadable barcode. Ensure photo is well-lit, sharp, and focused close up.";
         });
     });
 
@@ -165,7 +165,7 @@
         const fullAddress = `${street}, ${city}, ${state} ${zip}`.replace(/^[,\s]+|[,\s]+$/g, '').trim();
 
         if (!dobRaw || dobRaw.length < 8) {
-            document.getElementById("sync-status").innerText = "Error: Invalid AAMVA data payload barcode.";
+            document.getElementById("sync-status").innerText = "Error: Invalid ID barcode structure.";
             return;
         }
 
@@ -205,7 +205,7 @@
             alertBox.innerText = "✓ VALID ENTRY PRIVILEGES";
         }
 
-        // Clear input state value to allow consecutive parsing operations on the same asset
+        // Reset the file input string value to accept consecutive captures
         fileInputElement.value = "";
 
         const payload = {
@@ -219,7 +219,7 @@
             address: fullAddress || "N/A"
         };
 
-        if(GOOGLE_WEB_APP_URL === "YOUR_DEPLOYED_WEB_APP_URL_HERE") {
+        if(GOOGLE_WEB_APP_URL === "https://script.google.com/macros/s/AKfycby08TnHneGKXkdgYp75etFtDRCGEeXQ6f9lMUxluM1dVw9L-CsNEV2WpCNYpmeiIj9i/exec") {
             document.getElementById("sync-status").innerText = "Validation complete (Cloud link missing).";
             return;
         }
